@@ -6,8 +6,8 @@ from subprocess import Popen
 def plutus():
     # backtest.main()
     trade.main()
-    Popen("python3 dashboard/app.py&" , shell=True)
+    Popen("python3 dashboard/app.py&", shell=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     plutus()

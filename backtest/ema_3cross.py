@@ -1,5 +1,6 @@
 import yfinance as yf
-#import mplfinance as mpf
+
+# import mplfinance as mpf
 import numpy as np
 import json
 from subprocess import call
@@ -19,26 +20,36 @@ def calculate_momentum(closes, n):
     s = 0
 
     for i in range(1, len(closes)):
-        s += closes[i] - closes[i-1]
+        s += closes[i] - closes[i - 1]
 
     return s
 
 
 class ThreeEma:
-
-    def __init__(self, use_model=True,):
+    def __init__(
+        self,
+        use_model=True,
+    ):
         self.asset = bp["asset"]
         self.time_frame = bp["time_frame"]
         self.time_period = bp["time_period"]
         self.tp = bp["tp"]
         self.sl = bp["sl"]
         self.emas = bp["ema_list"]
-        self.period={
-            "start": bp["training_period"]["start"].strftime("%Y-%m-%d"), "end": bp["training_period"]["end"].strftime("%Y-%m-%d")
+        self.period = {
+            "start": bp["training_period"]["start"].strftime("%Y-%m-%d"),
+            "end": bp["training_period"]["end"].strftime("%Y-%m-%d"),
         }
 
-        self.df = yf.download(self.asset, period=self.time_period, interval=self.time_frame)
-        self.training_df = yf.download(self.asset, start=self.period["start"], end=self.period["end"], interval=self.time_frame)
+        self.df = yf.download(
+            self.asset, period=self.time_period, interval=self.time_frame
+        )
+        self.training_df = yf.download(
+            self.asset,
+            start=self.period["start"],
+            end=self.period["end"],
+            interval=self.time_frame,
+        )
 
         self.df["Date"] = self.df.index.strftime("%d:%m:%y")
         self.training_df["Date"] = self.training_df.index.strftime("%d:%m:%y")
@@ -53,7 +64,12 @@ class ThreeEma:
 
         self.profits, self.losses, self.break_evens = [], [], []
         self.trades = []
-        self.long_profits, self.long_losses, self.short_profits, self.short_losses = [], [], [], []
+        self.long_profits, self.long_losses, self.short_profits, self.short_losses = (
+            [],
+            [],
+            [],
+            [],
+        )
 
         self.even = True
         self.full_win_trades = 0
@@ -77,47 +93,75 @@ class ThreeEma:
         self.df[f"short_ema"] = self.df["Close"].ewm(span=self.emas[0]).mean()
         self.df[f"med_ema"] = self.df["Close"].ewm(span=self.emas[1]).mean()
         self.df[f"long_ema"] = self.df["Close"].ewm(span=self.emas[2]).mean()
-        self.df["Momentum"] = self.df["Close"].diff(10)  # ten period Momentum of asset close prices
+        self.df["Momentum"] = self.df["Close"].diff(
+            10
+        )  # ten period Momentum of asset close prices
 
     def check_conditions(self, index):
 
-        if self.df["short_ema"][index] > self.df["med_ema"][index] and self.df["short_ema"][index-1] <=  self.df["med_ema"][index-1]:
+        if (
+            self.df["short_ema"][index] > self.df["med_ema"][index]
+            and self.df["short_ema"][index - 1] <= self.df["med_ema"][index - 1]
+        ):
             self.short_crossover_med = True
 
-        if self.df["med_ema"][index] > self.df["long_ema"][index] and self.df["med_ema"][index-1] <=  self.df["long_ema"][index-1]:
+        if (
+            self.df["med_ema"][index] > self.df["long_ema"][index]
+            and self.df["med_ema"][index - 1] <= self.df["long_ema"][index - 1]
+        ):
             self.med_crossover_long = True
 
-
-        if self.df["short_ema"][index] < self.df["med_ema"][index] and self.df["short_ema"][index-1] >=  self.df["med_ema"][index-1]:
+        if (
+            self.df["short_ema"][index] < self.df["med_ema"][index]
+            and self.df["short_ema"][index - 1] >= self.df["med_ema"][index - 1]
+        ):
             self.short_crossunder_med = True
 
-
-        if self.df["med_ema"][index] < self.df["long_ema"][index] and self.df["med_ema"][index-1] >=  self.df["long_ema"][index-1]:
+        if (
+            self.df["med_ema"][index] < self.df["long_ema"][index]
+            and self.df["med_ema"][index - 1] >= self.df["long_ema"][index - 1]
+        ):
             self.med_crossunder_long = True
 
     def check_future(self, trade_type, index):
         signal = False
 
         if not self.use_model:
-            return True   # [ To test backtest performance without the use of the model!! ]
+            return (
+                True  # [ To test backtest performance without the use of the model!! ]
+            )
 
-        if index - mp.get("window_size") - 1 < 0 : # if there are not enough previous candlles to predict future, then return False
+        if (
+            index - mp.get("window_size") - 1 < 0
+        ):  # if there are not enough previous candlles to predict future, then return False
             return False
 
-        if index + mp.get("window_size") - 1  > len(self.df):  # if future index values exceeds the length of the df then return False
+        if index + mp.get("window_size") - 1 > len(
+            self.df
+        ):  # if future index values exceeds the length of the df then return False
             return False
 
         # input(len(self.df[mp.get("feature_cols")][index - mp.get("window_size") + 1: index+1]))
-        predicted_price = self.prediction_model.predict_next_day(self.df[mp.get("feature_cols")][index - mp.get("window_size") + 1: index+1])
+        predicted_price = self.prediction_model.predict_next_day(
+            self.df[mp.get("feature_cols")][
+                index - mp.get("window_size") + 1 : index + 1
+            ]
+        )
         # print(f"[+] predicted price after {mp['lookup_period']} days is {predicted_price} ...")
 
         # if predicted price +/- some threshold value is favourable to the condition then only take the Trade
         if trade_type == "long":
-            if predicted_price + self.threshold > self.df["Close"][index] and predicted_price - self.threshold > self.df["Close"][index]:
+            if (
+                predicted_price + self.threshold > self.df["Close"][index]
+                and predicted_price - self.threshold > self.df["Close"][index]
+            ):
                 signal = True
 
         if trade_type == "short":
-            if predicted_price - self.threshold < self.df["Close"][index] and  predicted_price + self.threshold < self.df["Close"][index]:
+            if (
+                predicted_price - self.threshold < self.df["Close"][index]
+                and predicted_price + self.threshold < self.df["Close"][index]
+            ):
                 signal = True
 
         # if trade_type == "long":
@@ -128,7 +172,8 @@ class ThreeEma:
         #     if predicted_price  < self.df["Close"][index]:
         #         signal = True
 
-        print(f"""
+        print(
+            f"""
         ======================================================================================================
         #
         |   Trade Type             : {trade_type}
@@ -138,14 +183,15 @@ class ThreeEma:
         |   Current Close Price    : {round(self.df['Close'][index], 3)}
         #
         ======================================================================================================
-        """)
+        """
+        )
 
         # call('clear')
 
         return signal
 
     def strategy(self):
-        call("clear") # clear the screen
+        call("clear")  # clear the screen
 
         for i in range(1, len(self.df)):
 
@@ -155,27 +201,52 @@ class ThreeEma:
                 if self.med_crossover_long and self.df["Momentum"][i] > 0:
                     # Using the model to confirm the signals generated
                     if self.check_future(trade_type="long", index=i):
-                        self.trades.append({
-                            "type" : "long",
-                            "bar_index": i if i == len(self.df) - 1 else i + 1,
-                            "entry_price" : self.df["Open"][i] if i == len(self.df) - 1 else self.df["Open"][i+1]
-                        })
-                    self.short_crossover_med = self.med_crossover_long = False # Resetting generated trade conditions
+                        self.trades.append(
+                            {
+                                "type": "long",
+                                "bar_index": i if i == len(self.df) - 1 else i + 1,
+                                "entry_price": self.df["Open"][i]
+                                if i == len(self.df) - 1
+                                else self.df["Open"][i + 1],
+                            }
+                        )
+                    self.short_crossover_med = (
+                        self.med_crossover_long
+                    ) = False  # Resetting generated trade conditions
 
             elif self.short_crossunder_med:
                 if self.med_crossunder_long and self.df["Momentum"][i] < 0:
-                     # Using the model to confirm the signals generated
+                    # Using the model to confirm the signals generated
                     if self.check_future(trade_type="short", index=i):
-                        self.trades.append({
-                            "type" : "short",
-                            "bar_index": i if i == len(self.df) - 1 else i + 1,
-                            "entry_price" : self.df["Open"][i] if i == len(self.df) - 1 else self.df["Open"][i+1]
-                        })
-                    self.short_crossunder_med = self.med_crossunder_long = False # Resetting generated trade conditions
+                        self.trades.append(
+                            {
+                                "type": "short",
+                                "bar_index": i if i == len(self.df) - 1 else i + 1,
+                                "entry_price": self.df["Open"][i]
+                                if i == len(self.df) - 1
+                                else self.df["Open"][i + 1],
+                            }
+                        )
+                    self.short_crossunder_med = (
+                        self.med_crossunder_long
+                    ) = False  # Resetting generated trade conditions
 
     def test(self):
         # backtest function is used to backtest the trades
-        self.max_winners_in_a_row, self.max_losers_in_a_row, self.break_evens = backtest(self.df, len(self.df), self.trades, self.tp, self.sl, self.profits, self.losses, even=self.even)
+        (
+            self.max_winners_in_a_row,
+            self.max_losers_in_a_row,
+            self.break_evens,
+        ) = backtest(
+            self.df,
+            len(self.df),
+            self.trades,
+            self.tp,
+            self.sl,
+            self.profits,
+            self.losses,
+            even=self.even,
+        )
         for trade in self.profits:
             trade["result"] = "win"
         for trade in self.losses:
@@ -184,7 +255,7 @@ class ThreeEma:
             trade["result"] = "even"
 
         self.trades = self.profits + self.losses + self.break_evens
-        self.trades.sort(key=lambda t:t["bar_index"])
+        self.trades.sort(key=lambda t: t["bar_index"])
 
         # write to db
 
@@ -192,7 +263,12 @@ class ThreeEma:
         for trade in self.trades:
             cursor = conn.cursor()
             query = "insert into backtest (trade_type, entry_price, exit_price, result) values (?,?,?,?)"
-            params = (trade["type"], trade["entry_price"], trade["closing_price_close"], trade["result"] )
+            params = (
+                trade["type"],
+                trade["entry_price"],
+                trade["closing_price_close"],
+                trade["result"],
+            )
             cursor.execute(query, params)
 
         conn.commit()
@@ -203,8 +279,12 @@ class ThreeEma:
         self.long_losses = [loss for loss in self.losses if loss["type"] == "long"]
         self.short_losses = [loss for loss in self.losses if loss["type"] == "short"]
 
-        self.long_profits = [profit for profit in self.profits if profit["type"] == "long"]
-        self.short_profits = [profit for profit in self.profits if profit["type"] == "short"]
+        self.long_profits = [
+            profit for profit in self.profits if profit["type"] == "long"
+        ]
+        self.short_profits = [
+            profit for profit in self.profits if profit["type"] == "short"
+        ]
 
         long_trades = len(self.long_profits) + len(self.long_losses)
         short_trades = len(self.short_profits) + len(self.short_losses)
@@ -221,17 +301,16 @@ class ThreeEma:
         win_rate_with_evens = ((total_wins + even_trades) / total_trades) * 100
 
         self.backtest_results = {
-            "asset":"ETHERIUM / USD",
-            "time_frame":self.time_frame,
-            "time_period":f"{self.period['start']} - {self.period['end']}",
-            "total_trades" : total_trades,
-            "losers":total_losses,
-            "winners":total_wins,
-            "evens":even_trades,
-            "win_rate":win_rate,
-            "win_rate_with_even":round(win_rate_with_evens, 2)
+            "asset": "ETHERIUM / USD",
+            "time_frame": self.time_frame,
+            "time_period": f"{self.period['start']} - {self.period['end']}",
+            "total_trades": total_trades,
+            "losers": total_losses,
+            "winners": total_wins,
+            "evens": even_trades,
+            "win_rate": win_rate,
+            "win_rate_with_even": round(win_rate_with_evens, 2),
         }
-
 
         msg = f"""
         + =================================================================================== +
@@ -267,7 +346,7 @@ class ThreeEma:
         + =================================================================================== +
         """
 
-        msg_telegrm = "" # write the telegram message
+        msg_telegrm = ""  # write the telegram message
         if self.tele_bot.send_msg(msg_telegrm):
             print(f"[+] {len(self.trades)} Trade message send to telegram group...")
         else:
@@ -313,7 +392,6 @@ class ThreeEma:
             f.write(data)
             print("[+] Backtest data written to file trades.txt...")
 
-
     def visualize(self):  # plotting results
         buys = [i["bar_index"] for i in self.trades if i["type"] == "long"]
         sells = [i["bar_index"] for i in self.trades if i["type"] == "short"]
@@ -323,17 +401,17 @@ class ThreeEma:
         # plotting losses
 
         plt.scatter(
-        self.df.iloc[self.long_losses].index,
-        self.df.iloc[self.long_losses]["Close"],
-        marker="v",
-        color="green"
+            self.df.iloc[self.long_losses].index,
+            self.df.iloc[self.long_losses]["Close"],
+            marker="v",
+            color="green",
         )
 
         plt.scatter(
-        self.df.iloc[self.short_losses].index,
-        self.df.iloc[self.short_losses]["Close"],
-        marker="v",
-        color="red"
+            self.df.iloc[self.short_losses].index,
+            self.df.iloc[self.short_losses]["Close"],
+            marker="v",
+            color="red",
         )
 
         plt.plot(self.df["short_ema"], label="short_ema", color="Blue")
@@ -357,7 +435,7 @@ class ThreeEma:
             assert "[-] You have to pass a Model Name..."
 
     def intro(self):
-        pass# plutus
+        pass  # plutus
 
     def save_data(self):
         # pickling the backtest results

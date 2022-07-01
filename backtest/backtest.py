@@ -3,10 +3,13 @@ Function to backtest the trades.
 This function decides if a trade is a win, loss or even. 
 
 """
+
+
 def backtest(df, df_len, trades, tp, sl, profits, losers, even=True):
     max_winner_in_a_row = max_losers_in_a_row = losers_count = winners_count = 0
 
-    if even: evens = []
+    if even:
+        evens = []
 
     for trade in trades:
         bar_index = trade.get("bar_index")
@@ -36,22 +39,22 @@ def backtest(df, df_len, trades, tp, sl, profits, losers, even=True):
                 if df["Close"][i] <= break_even:
                     stop_loss = break_even
                     new_sl = 0
-                    
+
             data = {
-                "type" : trade.get("type"),
-                "bar_index" : trade.get("bar_index"),
-                "entry_price" : trade.get("entry_price"),
+                "type": trade.get("type"),
+                "bar_index": trade.get("bar_index"),
+                "entry_price": trade.get("entry_price"),
                 "closing_index": i,
-                "closing_price_close" : df["Close"][i],
-                "closing_price_open" : df["Open"][i],
-                "closing_price_High" : df["High"][i],
-                "closing_price_Low" : df["Low"][i],
-                "stop loss %" : new_sl,
+                "closing_price_close": df["Close"][i],
+                "closing_price_open": df["Open"][i],
+                "closing_price_High": df["High"][i],
+                "closing_price_Low": df["Low"][i],
+                "stop loss %": new_sl,
                 "take profit %": tp,
-                "stop loss" : stop_loss,
-                "take profit" : take_profit,
-                "break_even" : break_even
-                }
+                "stop loss": stop_loss,
+                "take profit": take_profit,
+                "break_even": break_even,
+            }
 
             # trade["closing_price_close"] = df["Close"][i]
 
@@ -70,7 +73,9 @@ def backtest(df, df_len, trades, tp, sl, profits, losers, even=True):
                             evens.append(data)
                             losers_count = 0
                             winners_count += 1
-                            max_winner_in_a_row = max(max_winner_in_a_row, winners_count)
+                            max_winner_in_a_row = max(
+                                max_winner_in_a_row, winners_count
+                            )
                         else:
                             losers.append(data)
                             winners_count = 0
@@ -94,7 +99,9 @@ def backtest(df, df_len, trades, tp, sl, profits, losers, even=True):
                             evens.append(data)
                             losers_count = 0
                             winners_count += 1
-                            max_winner_in_a_row = max(max_winner_in_a_row, winners_count)
+                            max_winner_in_a_row = max(
+                                max_winner_in_a_row, winners_count
+                            )
                         else:
                             losers.append(data)
                             winners_count = 0
@@ -103,4 +110,8 @@ def backtest(df, df_len, trades, tp, sl, profits, losers, even=True):
 
                     break
 
-    return (max_losers_in_a_row, max_losers_in_a_row, evens) if even else (max_losers_in_a_row, max_losers_in_a_row)
+    return (
+        (max_losers_in_a_row, max_losers_in_a_row, evens)
+        if even
+        else (max_losers_in_a_row, max_losers_in_a_row)
+    )

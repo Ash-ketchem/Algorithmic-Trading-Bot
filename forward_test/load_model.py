@@ -2,6 +2,7 @@ from tensorflow.keras.models import load_model
 
 from .forwardTest_model import Model
 
+
 class LoadModel:
     def __init__(self, full_data=True, df=None):
         self.model = Model()
