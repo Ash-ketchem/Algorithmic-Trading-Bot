@@ -6,6 +6,7 @@ from subprocess import Popen
 def plutus():
     # backtest.main()
     trade.main()
+    #linux
     Popen("python3 dashboard/app.py&", shell=True)
 
 
