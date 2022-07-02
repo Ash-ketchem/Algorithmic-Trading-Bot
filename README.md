@@ -9,10 +9,13 @@ The objective of this project is not to create the best trading system but to in
 
 
  USAGE
+ 
 +______+
 
 cd "TO FOLDER"
+
 pip install -r requirements.txt
+
 
 # To train and test a model
   1. cd model
