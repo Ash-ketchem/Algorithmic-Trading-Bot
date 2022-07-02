@@ -6,3 +6,29 @@ This trading system can Backtest a strategy, train and use a neural network mode
 
 
 The objective of this project is not to create the best trading system but to incorporate neural networks into traditional algorithmic trading and to understand whether neural networks are really efficient in algorithmic trading systems.
+
+
+ USAGE
++______+
+
+cd "TO FOLDER"
+pip install -r requirements.txt
+
+# To train and test a model
+  1. cd model
+  2. python3 model.py
+  
+ 
+# To backtest the strategy
+  1. cd backtest
+  2. python3 backtest_with_model.py
+
+# To forward test the strategy
+  1. cd forward_test
+  2. python3 trade.py
+ 
+# To use the live dashboard
+  1. cd dashboard
+  2. python3 app.py
+  
+
